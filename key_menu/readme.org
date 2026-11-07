@@ -1,0 +1,236 @@
+* OLED Key Menu
+
+A menu for OLED displays that exposes keycodes without needing to add them to a layer.
+
+*Keycodes*
+
+| Long Name    | Short Name         | Description                                                    |
+|--------------+--------------------+----------------------------------------------------------------|
+| =MENU_UP=    | =MENUU=            | Previous entry, same menu                                      |
+| =MENU_DOWN=  | =MENUD=, =MENU_DN= | Next entry, same menu                                          |
+| =MENU_BACK=  | =MENUB=, =MENU_BK= | Previous menu, if any                                          |
+| =MENU_ACT=   | =MENUA=, =MENU_AT= | Invoke menu action: send keycode, open sub-menu, call function |
+| =MENU_RESET= | =MENUX=, =MENU_RS= | Jump to initial menu                                           |
+
+*Dependencies*
+
+Adding this module will enable the [[https://docs.qmk.fm/features/repeat_key][repeat key]] feature.
+
+** Installation
+
+1. Checkout [[https://github.com/joshbax189/qmk_modules][git submodule]] to either the QMK directory or External Userspace.
+   See [[https://docs.qmk.fm/features/community_modules][QMK Community Modules guide]].
+2. Include the module in your =keymap.json=.
+3. Define a layer for menu keys, bind at least =MENU_UP=, =MENU_DOWN=, =MENU_BACK=, =MENU_ACT=.
+4. Call =menu_render_oled= in =oled_task_user= when menu layer is active.
+
+This is enough to display the default menus.
+
+*** Example
+
+Add the module to =keymap.json=
+#+begin_src json
+{
+    "modules": [
+        "joshbax189/oled_key_menu"
+    ]
+}
+#+end_src
+
+Define a menu layer and call the render function.
+#+begin_src C
+// keymap.c
+#include QMK_KEYBOARD_H
+
+enum layers {
+  _QWERTY,
+  _MENU
+};
+
+// example crkbd layout
+const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
+    [_QWERTY] = LAYOUT_split_3x6_3(
+  //,-----------------------------------------------------.                    ,-----------------------------------------------------.
+       KC_TAB,    KC_Q,    KC_W,    KC_E,    KC_R,    KC_T,                         KC_Y,    KC_U,    KC_I,    KC_O,   KC_P,  KC_BSPC,
+  //|--------+--------+--------+--------+--------+--------|                    |--------+--------+--------+--------+--------+--------|
+      KC_LCTL,    KC_A,    KC_S,    KC_D,    KC_F,    KC_G,                         KC_H,    KC_J,    KC_K,    KC_L, KC_SCLN, KC_QUOT,
+  //|--------+--------+--------+--------+--------+--------|                    |--------+--------+--------+--------+--------+--------|
+      KC_LSFT,    KC_Z,    KC_X,    KC_C,    KC_V,    KC_B,                         KC_N,    KC_M, KC_COMM,  KC_DOT, KC_SLSH,  KC_ESC,
+  //|--------+--------+--------+--------+--------+--------+--------|  |--------+--------+--------+--------+--------+--------+--------|
+                                          KC_LGUI, MO(_MENU), KC_SPC,    KC_ENT, KC_RCTL, KC_RALT
+                                      //`--------------------------'  `--------------------------'
+
+  ),
+    [_MENU] = LAYOUT_split_3x6_3(
+  //,-----------------------------------------------------.                    ,-----------------------------------------------------.
+      XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                      XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
+  //|--------+--------+--------+--------+--------+--------|                    |--------+--------+--------+--------+--------+--------|
+      XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                      XXXXXXX, MENU_BK, MENU_DN, MENU_UP, MENU_AT, XXXXXXX,
+  //|--------+--------+--------+--------+--------+--------|                    |--------+--------+--------+--------+--------+--------|
+      XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,                      XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX, XXXXXXX,
+  //|--------+--------+--------+--------+--------+--------+--------|  |--------+--------+--------+--------+--------+--------+--------|
+                                          XXXXXXX, XXXXXXX, XXXXXXX,    XXXXXXX, XXXXXXX, XXXXXXX
+                                      //`--------------------------'  `--------------------------'
+  )
+};
+
+// Ensure display is cleared when menu is opened or closed.
+// You could add equivalent code to oled_task_user instead, if you prefer
+layer_state_t layer_state_set_user(layer_state_t state) {
+  static bool is_menu_open = false;
+  if (get_highest_layer(state) == _MENU) {
+    if (!is_menu_open) {
+      oled_clear();
+      is_menu_open = true;
+    }
+  } else {
+    if (is_menu_open) {
+      oled_clear();
+      is_menu_open = false;
+    }
+  }
+
+  return state;
+}
+
+bool oled_task_user(void) {
+  if (get_highest_layer(layer_state) == _MENU) {
+    menu_render_oled();
+  } else {
+    // normal display code here...
+  }
+  return true;
+}
+#+end_src
+
+This will show the menu while the =MO(_MENU)= key is held, and the right home row keys will navigate through the menu.
+The menu will remain open after each action.
+
+** Configuration
+
+The default menu includes options for features like RGB Matrix, Underglow or Magic Keys which are enabled with the corresponding features.
+
+You can customize the menus either individually or by rewriting the entire menu structure.
+
+*** Default Menus
+
+These are the built-in sub-menus:
+
+| Name         | Description                             | Switch              |
+|--------------+-----------------------------------------+---------------------|
+| =rgb_menu=   | RGB matrix feature                      | =RGB_MATRIX_ENABLE= |
+| =ug_menu=    | RGB underglow feature                   | =RGBLIGHT_ENABLE=   |
+| =boot_menu=  | QMK boot keys                           |                     |
+| =swap_menu=  | Magic keycodes for swap hands           |                     |
+| =nkro_menu=  | Magic keycodes for NKRO                 |                     |
+| =split_menu= | Magic keycodes for Split EEProm setting | =EE_HANDS=          |
+| =gui_menu=   | Magic keycodes to control GUI keys      |                     |
+| =magic_menu= | Sub menu with above magic keycodes      |                     |
+
+*** Customizing Individual Menus
+
+If you just want to change a single menu, either adding a new sub-menu, or changing the order or text of existing entries,
+you can use the =MAKE_MENU= macro to define the new/changed menus and then assign them to the correct place
+in =keyboard_post_init_user=.
+
+The structure of the =MAKE_MENU= macro is
+#+begin_src C
+MAKE_MENU(new_name,
+   { "entry 1", ACTION }, // see below for actions
+   { "entry 2", ACTION }, // always include a trailing comma
+); // always terminate with a semicolon
+#+end_src
+
+This defines two new symbols =new_name= which holds the menu state and should be referred to by the =SUB_MENU= action, and
+=new_name_entries= which holds an array of entries and can be assigned to another menu's =entries= field.
+
+The defined actions are
+- =KEY_ACTION(KEYCODE)= to send the given keycode, substituting for the active keyrecord.
+  For example =KEY_ACTION(GU_ON)= sends the Magic Key code for enabling GUI keys.
+- =FUNC_ACTION(NAME)= calls the named function with the current keyrecord as argument.
+  See below.
+- =SUB_MENU(NAME)= open the named sub-menu, which must be defined with a =MAKE_MENU= call.
+  For example =SUB_MENU(nkro_menu)= will open the predefined NKRO keys menu.
+
+*Changing Menu Content*
+
+Use this pattern for reordering, remapping or renaming menu entries.
+
+#+begin_src C
+#include "menu.h"
+
+MAKE_MENU(my_gui_menu,
+    // remove these options from the default menu
+    /* { "GU_OFF" , KEY_ACTION(GU_OFF) }, */
+    /* { "GU_ON"  , KEY_ACTION(GU_ON) }, */
+    { "GU_TOGG", KEY_ACTION(GU_TOGG) },
+);
+
+void keyboard_post_init_user(void) {
+    // careful with the syntax!
+    // <original> DOT entries = <new name> UNDERSCORE entries
+    gui_menu.entries = my_gui_menu_entries;
+}
+#+end_src
+
+*Adding a Menu*
+
+#+begin_src C
+#include "menu.h"
+
+// a totally new menu
+MAKE_MENU(my_fun_menu,
+    {"A", KEY_ACTION(KC_A)},
+    {"B", KEY_ACTION(KC_B)},
+    {"C", KEY_ACTION(KC_C)},
+);
+
+// redefine the menu which will open the new one
+MAKE_MENU(my_top_menu,
+    { "ABC", SUB_MENU(my_fun_menu) },
+    { "BOOT", SUB_MENU(boot_menu) },
+    { "MAGIC", SUB_MENU(magic_menu) },
+);
+
+void keyboard_post_init_user() {
+    // careful with the syntax!
+    // <original> DOT entries = <new name> UNDERSCORE entries
+    top_menu.entries = my_top_menu_entries;
+}
+#+end_src
+
+*Calling Functions*
+
+You can also configure menu items to call functions:
+#+begin_src C
+void my_neat_function() {
+  print("Cool!\n");
+  return;
+}
+
+void my_fav_effect() {
+  rgb_matrix_mode(RGB_MATRIX_PIXEL_RAIN);
+}
+
+MAKE_MENU(my_menu,
+     { "COOL", FUNC_ACTION(my_neat_function) },
+     { "MAKE IT RAIN", FUNC_ACTION(my_fav_effect) },
+);
+#+end_src
+
+Note that the function must have prototype =void function(void)=, i.e. takes no arguments.
+
+*** Redefining All Menus
+
+If you want to make extensive changes to the menu structure, it can be more efficient to start from the existing menu template and
+edit it yourself.
+
+The macros will be the same as in [[Customizing Individual Menus]], with the addition of =TOP_MENU= which defines the root of the menu tree/
+the entry point to the menu.
+
+Follow this procedure:
+1. Copy the =default_menu.c= file from the module into your keymap folder
+2. In your =rules.mk= add ~USE_DEFAULT_MENU = no~ and add the new menu as an extra source file, ~SRC += my_menu.c~
+3. Edit the menu definitions in your keymap menu file
+
+*Note*: you do not need to assign anything in =keyboard_post_init_user=, the default keymaps are completely overwritten.
