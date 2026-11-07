@@ -1,0 +1,12 @@
+{
+    "module_name": "Case Lock",
+    "maintainer": "Josh Bax",
+    "license": "GPL-2.0-or-later",
+    "features": {},
+    "keycodes": [
+        {
+            "key": "CASE_LOCK",
+            "aliases": ["CASE", "CASELK", "CASE_L"]
+        },
+    ]
+}

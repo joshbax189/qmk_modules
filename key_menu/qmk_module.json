@@ -1,0 +1,30 @@
+{
+    "module_name": "Key Menu",
+    "maintainer": "Josh Bax",
+    "license": "GPL-2.0-or-later",
+    "features": {
+        "repeat_key": true
+    },
+    "keycodes": [
+        {
+            "key": "MENU_UP",
+            "aliases": ["MENUU"]
+        },
+        {
+            "key": "MENU_DOWN",
+            "aliases": ["MENUD", "MENU_DN"]
+        },
+        {
+            "key": "MENU_BACK",
+            "aliases": ["MENUB", "MENU_BK"]
+        },
+        {
+            "key": "MENU_ACT",
+            "aliases": ["MENUA", "MENU_AT"]
+        },
+        {
+            "key": "MENU_RESET",
+            "aliases": ["MENUX", "MENU_RS"]
+        },
+    ]
+}
